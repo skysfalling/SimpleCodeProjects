@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+        canvas {
+            border: 1px solid #d3d3d3;
+            background-color: #e3e3e3;
+        }
+    </style>
+</head>
+
+<body onload="startGame()">
+    <script>
+
+        var tiles = [];
+        tile_size = 100;
+        grid_width = 12;
+        grid_height = 12;
+        grid_centering_offset = 100;
+
+        start_tile = null;
+        end_tile = null;
+
+        function startGame() {
+            myGameArea.start();
+            ctx = myGameArea.context;
+            ctx.fillStyle = this.color;
+
+            createTiles();
+
+        }
+
+
+        var myGameArea = {
+            canvas: document.createElement("canvas"),
+            start: function () {
+                this.canvas.width = (grid_width * tile_size) + (grid_centering_offset * 2);
+                this.canvas.height = (grid_height * tile_size) + (grid_centering_offset * 2);
+                this.context = this.canvas.getContext("2d");
+                document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+                this.interval = setInterval(updateGameArea, 20);
+
+            },
+            clear: function () {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            }
+        }
+
+
+    
+
+    //UPDATE FUNCTION =======================================
+        function updateGameArea() {
+            myGameArea.clear();
+            ctx = myGameArea.context;
+
+            //drawGrid();
+            updateTiles();
+            //tiles = []; //clear tile list
+
+            //ctx.fillStyle = "black";
+            //ctx.fillText("rows: " + tiles.length + " column: " + tiles[0].length, tiles[0][0].x + 10, tiles[0][0].y + 20);
+        }
+
+    // FUNCTIONS =======================================================================
+    
+        function drawGrid(){
+            //borders
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(grid_width * tile_size, 0);
+            ctx.lineTo(grid_width * tile_size, grid_height * tile_size);
+            ctx.lineTo(0, grid_height * tile_size);
+            ctx.lineTo(0, 0);
+
+            //draw horizontal lines
+            for(i = 1; i < grid_height; i++){
+                ctx.moveTo(0, i * tile_size); //left most point
+                ctx.lineTo(grid_width * tile_size, i * tile_size);
+            }
+
+            //draw vertical lines
+            for(i = 1; i < grid_width; i++)
+            {
+                ctx.moveTo(i * tile_size, 0);
+                ctx.lineTo(i * tile_size, grid_height * tile_size);
+            }
+            
+            //darkens the stroke? idk im lazy and this worked 
+            ctx.lineWidth = 10;
+            ctx.stroke();
+
+
+        }
+
+        function createTiles(){
+            
+            for (i = 0; i < grid_width; i++ ) //column number
+            {
+                row = []
+                for (j = 0; j < grid_height; j++ ) //row number
+                {
+                    x = (j * tile_size) + grid_centering_offset; //vert pos
+                    y = (i * tile_size) + grid_centering_offset; //horz pos
+
+                    new_tile = new tile(x, y, "null", [i, j]); //create new tile at x,y pos - state - coordinate
+                    row.push(new_tile); //add tile to row
+
+                    ctx.font = "20px Arial";
+                    ctx.fillStyle = "black";
+                    ctx.fillText(i + "," + j, x + tile_size/2, y + tile_size/2);
+
+                    //console.log("row: " + row);
+
+                }
+
+                tiles.push(row); //add row to tiles list
+                //console.log("tiles: " + tiles);
+
+            }
+
+            start_tile = tiles[0][4];
+            start_tile.state = "start";
+            end_tile = tiles[grid_height - 1][grid_width - 4];
+            end_tile.state = "end";
+
+
+        }
+
+        function tile(x, y, state = "null", coordinate = [-1, -1])
+        {
+            //states - null, start, path, end, wall
+
+            this.x = x;
+            this.y = y;
+            this.state = state;
+            this.coordinate = coordinate;
+            this.name = this.coordinate[0].toString() + this.coordinate[1].toString();
+
+
+            this.update = function(){
+                ctx = myGameArea.context;
+                font_size = tile_size * 0.1;
+                ctx.font = font_size.toString() + "px Arial";
+
+                this.g_cost = 10;
+                this.h_distance = Math.abs(end_tile.x - this.x) + Math.abs(this.y - end_tile.y);
+                this.f_total = this.g_cost + this.h_distance;
+
+
+                //null tile
+                if (this.state == "null")
+                {
+                    ctx.fillStyle = "white";
+                }
+                else
+                {
+                    //start tile
+                    if (this.state == "start")
+                    {
+
+                        ctx.fillStyle = "green";
+                        //start_tile = this.tile;
+
+                        /*
+                        for (i = 0; i < this.neighbors.length; i++)
+                        {
+                            //this.neighbors[i].state = "neighbor";
+                        }*/
+
+
+                    }
+
+                    //end tile
+                    if (this.state == "end")
+                    {
+                        ctx.fillStyle = "red";
+                        //end_tile = this.tile;
+                    }
+                    
+                    //path tile
+                    if (this.state == "path")
+                    {
+                        ctx.fillStyle = "black";
+                    }
+
+                    if (this.state == "neighbor")
+                    {
+                        ctx.fillStyle = "#ababab";
+                    }
+
+                }
+
+                ctx.fillRect(x, y, tile_size - 1, tile_size - 1);
+
+
+                //STATS
+                ctx.fillStyle = "black";
+                ctx.fillText(this.name, x , y + (tile_size * 0.95));//state
+
+                ctx.fillText(end_tile.x, x + 50 , y + (tile_size * 0.95));//x value of end tile
+
+
+                
+                //G() - cost of tile
+                ctx.fillStyle = "black";
+                ctx.fillText(this.g_cost, x + (tile_size * 0.02), y + (tile_size * 0.1));
+
+                //H() - distance from tile to end
+                ctx.fillText(this.h_distance, x + (tile_size * 0.7), y + (tile_size * 0.1));
+
+                //Total Cost
+                ctx.font = (tile_size * 0.2).toString() + "px Arial";;
+                ctx.fillText(this.f_total, x + (tile_size * 0.25), y + (tile_size * 0.6));
+            }
+        }
+
+        function updateTiles(){
+
+            for (i = 0; i < tiles.length; i++)
+            {
+                //ctx.fillStyle = "black";
+                //ctx.fillText(i, 100, 300);
+
+
+                for (j = 0; j < tiles[i].length; j++)
+                {
+                    tiles[i][j].update();
+                }
+            }
+        }
+
+        function findPath(){
+
+            
+            startTile = start_tile;
+            endTile = end_tile;
+
+            open_list = [];
+            closed_list = [];
+
+            open_list.push(startTile);
+
+
+            while (open_list.length != 0)
+            {
+                //find the node with the least f
+                current_node = null;
+                for (i = 0; i < open_list.length; i++)
+                {
+                    if (i == 0) {current_node = open_list[0]}
+                    else
+                    {
+                        if (open_list[i].f_total < current_node.f_total)
+                        {
+                            current_node = open_list[i];
+                        }
+
+                    }
+                }
+
+                //if node is end, break
+                if (current_node.h_distance == 0)
+                {
+                    break;
+                }
+                //else ...
+                else
+                {
+
+                    //put the current node in the closed list
+                    const indexOfcurrentNode = open_list.indexOf(current_node);
+                    if (indexOfcurrentNode > -1){open_list.splice(indexOfcurrentNode,1);}
+                    closed_list.push(current_node);
+
+                    console.log("open list: " + open_list);
+                    console.log("closed list: " + closed_list);
+
+                    //get all the neighbors of the current node
+                    var current_neighbors;
+                    current_neighbors = getTileNeighbors(current_node);
+
+                    console.log("cur neighbors: " + current_neighbors);
+
+                    //check the values 
+                    for (i = 0; i < current_neighbors.length; i++)
+                    {
+                        //if neighbor
+                        if (current_neighbors[i].g_cost < current_node.g_cost)
+                        {
+
+                        }
+                    }
+
+                }
+            }
+        }
+
+        function getTileNeighbors(tile)
+        {
+            neighbors = [];
+            
+            //TOP TILE
+            try {
+                //                     row                  column
+                top_neighbor = tiles[tile.coordinate[0] - 1][tile.coordinate[1]];
+                top_neighbor.state = "neighbor";
+                neighbors.push(top_neighbor);
+                console.log("Top tile is valid");
+            }
+            catch(err)
+            {
+                console.log("Top tile is null");
+            }
+
+            //RIGHT TILE
+            try {
+                //                     row                  column
+                right_neighbor = tiles[tile.coordinate[0]][tile.coordinate[1] + 1];
+                right_neighbor.state = "neighbor";
+                neighbors.push(right_neighbor);
+                console.log("Right tile is valid");
+            }
+            catch(err)
+            {
+                console.log("Right tile is null");
+            }
+         
+            //BOTTOM TILE
+            try {
+                //                     row                  column
+                bottom_neighbor = tiles[tile.coordinate[0] + 1][tile.coordinate[1]];
+                bottom_neighbor.state = "neighbor";
+                neighbors.push(bottom_neighbor);
+                console.log("Bottom tile is valid");
+            }
+            catch(err)
+            {
+                console.log("Bottom tile is null");
+            }
+
+            //LEFT TILE
+            try {
+                //                     row                  column
+                left_neighbor = tiles[tile.coordinate[0]][tile.coordinate[1] - 1];
+                left_neighbor.state = "neighbor";
+                neighbors.push(left_neighbor);
+                console.log("Left tile is valid");
+            }
+            catch(err)
+            {
+                console.log("Left tile is null");
+            }
+
+            return neighbors;
+
+        }
+
+    </script>
+
+
+    <div style="text-align:center;width:0px;">
+        <button onclick="findPath()">Find Path</button>
+    </div>
+
+</body>
+
+</html>
